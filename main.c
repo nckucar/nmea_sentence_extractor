@@ -3,12 +3,53 @@
 #include <string.h>
 #include <unistd.h>  /* getopt */
 
+typedef enum {LINUX, WINDOW} Platform;
+
 static char *out_filename = "output";
 static char *in_filename;
 static char *key1 = "QQ02C";
 static char *key2 = "$GPGGA";
+Platform platform = LINUX;
 
-void extractor()
+void window_extractor()
+{
+    if (in_filename == NULL) {
+        printf("No input.\n");
+        return;
+    }   
+
+    FILE *input_file, *output_file;
+    char *buff;
+    char *sub_buff;
+    size_t len = 0;
+    size_t nread;
+
+    input_file = fopen(in_filename, "r");
+    output_file = fopen(out_filename, "w");
+    
+    while ((nread = getline(&buff, &len, input_file)) != -1) {
+        // check QQ02C keyword, if not exist, go to check next keyword
+        if ((sub_buff = strstr(buff, key1)) != NULL) {
+            sub_buff[strlen(sub_buff) - 2] = '\r';
+            sub_buff[strlen(sub_buff) - 1] = '\n';
+            fwrite(sub_buff, 1, strlen(sub_buff), output_file);
+        }
+            
+        // check $GPGGA keyword, if both keywords not exist, skip this loop
+        if ((sub_buff = strstr(buff, key2)) != NULL) {
+            sub_buff[strlen(sub_buff) - 2] = '\r';
+            sub_buff[strlen(sub_buff) - 1] = '\n';
+            fwrite(sub_buff, 1, strlen(sub_buff), output_file);
+        } else
+            continue;
+    }
+
+    free(buff);
+    free(sub_buff);
+    fclose(input_file);
+}
+
+void linux_extractor()
 {
     if (in_filename == NULL) {
         printf("No input.\n");
@@ -50,7 +91,7 @@ void flag_parser(int argc, char **argv)
 
     while(1) {
 
-        cmd_opt = getopt(argc, argv, "o:");
+        cmd_opt = getopt(argc, argv, "wo:");
 
         /* End condition always first */
         if (cmd_opt == -1) {
@@ -60,6 +101,9 @@ void flag_parser(int argc, char **argv)
         switch (cmd_opt) {
             case 'o':
                 out_filename = strdup(optarg);
+                break;
+            case 'w':
+                platform = WINDOW;
                 break;
 
             /* Error handle: Mainly missing arg or illegal option */
@@ -78,7 +122,11 @@ void flag_parser(int argc, char **argv)
 int main(int argc, char **argv)
 {
     flag_parser(argc, argv);
-    extractor();
+
+    if (platform == LINUX)
+        linux_extractor();
+    else
+        window_extractor();
 
     return 0;
 }

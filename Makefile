@@ -3,7 +3,7 @@
 all: extractor
 
 extractor:
-	gcc main.c -o exe
+	@gcc main.c -o exe
 
 clean:
-	rm exe output
+	@rm -f exe output
